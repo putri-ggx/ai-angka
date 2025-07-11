@@ -10,41 +10,44 @@
     }
 
     canvas {
-      border: 1px solid black;
+      border: 2px solid #333;
       background: white;
       margin-bottom: 10px;
     }
 
     #buttons {
-      margin: 15px auto;
+      margin-top: 15px;
     }
 
     button {
       padding: 10px 20px;
       margin: 5px;
+      font-size: 16px;
+      cursor: pointer;
     }
 
     #hasil {
+      margin-top: 20px;
       font-size: 24px;
       font-weight: bold;
-      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-
-  <h2>Gambar Angka (0–9):</h2>
+  <h2>Gambar Angka (0 - 9)</h2>
   <canvas id="canvas" width="280" height="280"></canvas>
+
   <div id="buttons">
     <button onclick="tebak()">Tebak!</button>
     <button onclick="bersihkan()">Bersihkan</button>
   </div>
+
   <div id="hasil">Hasil: -</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0"></script>
   <script>
-    let canvas = document.getElementById('canvas');
-    let ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
     let isDrawing = false;
 
     canvas.addEventListener('mousedown', () => isDrawing = true);
@@ -54,8 +57,8 @@
 
     function draw(e) {
       if (!isDrawing) return;
-      let rect = canvas.getBoundingClientRect();
-      ctx.fillStyle = "black";
+      const rect = canvas.getBoundingClientRect();
+      ctx.fillStyle = 'black';
       ctx.beginPath();
       ctx.arc(e.clientX - rect.left, e.clientY - rect.top, 10, 0, Math.PI * 2);
       ctx.fill();
@@ -67,15 +70,24 @@
     }
 
     let model;
-    (async () => {
-      model = await tf.loadLayersModel('model_web/model_web_model.json');
+    (async function () {
+      try {
+        model = await tf.loadLayersModel('model_web/model_web_model.json?v=2');
+        console.log("Model berhasil dimuat");
+      } catch (e) {
+        console.error("Gagal memuat model:", e);
+        document.getElementById('hasil').innerText = 'Gagal load model';
+      }
     })();
 
     async function tebak() {
-      if (!model) return;
+      if (!model) {
+        alert("Model belum dimuat!");
+        return;
+      }
 
-      let imgData = ctx.getImageData(0, 0, 280, 280);
-      let input = tf.browser.fromPixels(imgData, 1)
+      const imgData = ctx.getImageData(0, 0, 280, 280);
+      let tensor = tf.browser.fromPixels(imgData, 1)
         .resizeNearestNeighbor([28, 28])
         .mean(2)
         .expandDims(0)
@@ -83,11 +95,11 @@
         .toFloat()
         .div(255.0);
 
-      let pred = model.predict(input);
-      let angka = pred.argMax(1).dataSync()[0];
-      document.getElementById('hasil').innerText = 'Hasil: ' + angka;
+      let prediksi = model.predict(tensor);
+      let angka = (await prediksi.argMax(1).data())[0];
+
+      document.getElementById('hasil').innerText = `Hasil: ${angka}`;
     }
   </script>
-
 </body>
 </html>
